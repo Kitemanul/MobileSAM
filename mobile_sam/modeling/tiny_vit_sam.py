@@ -353,13 +353,13 @@ class TinyViTBlock(nn.Module):
             pH, pW = H + pad_b, W + pad_r
             nH = pH // self.window_size
             nW = pW // self.window_size
-            # window partition
-            x = x.view(B, nH, self.window_size, nW, self.window_size, C).transpose(2, 3).reshape(
-                B * nH * nW, self.window_size * self.window_size, C)
+            # window partition (5D equivalent, avoids >5D tensors for NPU compatibility)
+            ws = self.window_size
+            x = x.view(B * nH, ws, nW, ws, C).transpose(1, 2).reshape(
+                B * nH * nW, ws * ws, C)
             x = self.attn(x)
-            # window reverse
-            x = x.view(B, nH, nW, self.window_size, self.window_size,
-                       C).transpose(2, 3).reshape(B, pH, pW, C)
+            # window reverse (5D equivalent)
+            x = x.view(B * nH, nW, ws, ws, C).transpose(1, 2).reshape(B, pH, pW, C)
 
             if padding:
                 x = x[:, :H, :W].contiguous()
